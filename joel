@@ -1,0 +1,307 @@
+import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:expense_tracker/models/expense.dart'; //we import this because we need the formatter variable we created that uses the 3rd party package
+
+class NewExpense extends StatefulWidget {
+  const NewExpense({super.key, required this.onAddExpense});
+
+//so to add a new expense to the list we have to create a new property that stores a function as a value
+//it returns nothing but returns an expense value of type Expense
+// we can call it onAddExpense to make it clear this contains a function when a certain event occurs (when a form is submitted in this case)
+//we also have to accept it above after super.key and then use required or otherwise this widget won't work if we don't provide this function
+
+final void Function (Expense expense) onAddExpense;
+
+
+
+
+  @override
+  State<NewExpense> createState() {
+    return _NewExpenseState();
+  }
+}
+
+class _NewExpenseState extends State<NewExpense> {
+  final _titleController = TextEditingController();
+  final _amountController = TextEditingController();
+
+  //creating a new variable here of type DateTime to capture the date that was picked in 'pickedDate' variable using 'await' keyword
+  //we add '?' to DateTime to tell flutter that DateTime either holds a value or nothing / null, since it may or may not be picked right
+  //but we are creating the variable _selectedDate before it is assigned a value from pickedDate so that's why maybe we need to tell it that
+
+  DateTime? _selectedDate;
+
+  //it will be of type category and we'll call it _selectedCategory
+  //initially we'll set it to category.leisure
+  //we added 'final' here as that was prompted by the visual editor
+
+  Category _selectedCategory = Category.leisure;
+
+//create a new method to pick the date when we press the date icon
+//can use built in showdatepicker
+
+  void _presentDatePicker() async {
+    //async and await are just how you work with values of type 'future' that are received in the future
+
+    //let's create helper variables to answer the requirements below of firstdate and last date called now and firstDate
+
+    final now = DateTime.now();
+    final firstDate = DateTime(now.year - 1, now.month, now.day);
+
+    //how we would do for a scheduling app: final lastDate = DateTime(now.year+50, now.month, now.day);
+    //it's an expense tracking app, but I guess for scheduling you could do now+ 50 right? yes
+
+    final pickedDate = await showDatePicker(
+        //await is just how you work with values of type future
+        context: context, //all these are required parameters of showDatePicker
+        firstDate: firstDate,
+        lastDate: now);
+
+    //showdatepicker returns a value called future
+    //can use '.then' approach or 'async' and 'await' approach when we get a future value
+    //when you use 'await' you can then assign the value to a variable so here we called it 'pickedDate'
+    //when we use 'await', flutter waits until the variable is assigned a value before moving to the next line of code
+    //we will now create a variable to show the date later, we are calling it _selectedDate and it will be of type DateTime
+
+    //now that we have created a DateTime? variable above called _selectedDate, we can call set state here
+    //also works because pickedDate is of type DateTime and _selectedDate needs DateTime
+
+    setState(() {
+      //we setState because we picked values later and now we want _selectedDate to equal picked date
+      _selectedDate = pickedDate;
+    });
+  }
+
+//let's create a method below to show what happens when the user enters something
+
+  void _submitExpenseData() {
+    //trim removes white spaces and is built in and isEmpty is also built in and checks whether it's empty
+    //but we need to also check for amount whether it's entered correctly so we will create an IF condition for that
+    //we will first need to convert it
+    //we can call it enteredAmount
+    //we can use built in method called double.dryparse
+
+    final enteredAmount = double.tryParse(_amountController
+        .text); //it takes in a string and returns a double if it can; if can't return a double then it returns null
+    //tryParse('Hello') => null, tryParse('1.12') => 1.12
+
+    //can then add another variable which is for amount is invalid
+    // we can set it to a boolean true or false
+    // but it is also invalid if the amount is smaller than 0 so we need a combination of conditions
+    //we can use AND which is written using && or OR which is written using two pipe symbols ||
+    //they are used to derive booleans
+
+    final amountIsInvalid = enteredAmount == null ||
+        enteredAmount <= 0; //also invalid if enteredAmount smaller than 0
+    //if one of these above conditions is met, amountIsInvalid will be true
+    //if both conditions are false, then amountIsInvalid is false
+
+//now combine the below condition with the above condition of amountIsInvalid
+//amountIsInvalid basically holds true or false
+//and so does the titlecontroller text is empty condition that returns true or false
+//so basically what we're saying is that if either of these conditions is yielding true, show error
+//but we also need to check for date if no date is selected so we will check _selectedDate = null
+//we don't need to check for category because earlier we set 'leisure' as the default category
+
+    if (_titleController.text.trim().isEmpty ||
+        amountIsInvalid == true ||
+        _selectedDate == null) {
+      //show error message using built in show dialog, shows a pop up on the screen
+      //ctx is apparently the default thing we're using, provided by flutter
+      // => means to return something
+      //return built in dialog widget, there's several types. We use alertdialog
+      //title and content are default parameters of the alertdialog
+      //actions allows you to display buttons like close the pop up
+      //Navigator pop closes stuff and then we need to provide context connected to the alertdialog
+
+      showDialog(
+          context: context,
+          builder: (ctx) => AlertDialog(
+                title: const Text('Error'),
+                content: const Text(
+                    'Please make sure the data entered is correct.'),
+                actions: [
+                  TextButton(
+                      onPressed: () {
+                        Navigator.pop(ctx);
+                      },
+                      child: const Text('Okay'))
+                ],
+              ));
+              return; //we also added this return here so that no code thereafter gets executed
+              //here it's still inside of this IF statement
+    }
+
+
+    //you can get access to the properties of the widget class that belongs to your state class by
+    //using the special 'widget' property provided by flutter
+    //we pass it Expense here and create a new expense
+    //title is the value stored in _titleController.text
+    //for amount we can use enteredAmound which we're using above to parse the amount controller for correct values
+    //we add an exclamation mark to selectedDate because Dart thinks it might be null but since we know it won't be, we add this
+
+    widget.onAddExpense(Expense(title: _titleController.text, 
+    amount: enteredAmount, //we added an exclamation mark here but should we have?
+    date: _selectedDate!, 
+    category: _selectedCategory));
+  }
+
+//however below, we want to show the pickedDate in human readable format so we will bring the 'intl' package that we used previously
+// we created a variable called 'formatter' so to access it we can import that other dart file
+// it basically just gives you a way to change the format; it's how the 3rd party package works
+//might seem confusing but that's just how the 3rd party package works
+
+//we will use a default Dart controller feature
+
+  //class provided by flutter optimized for handling user input
+
+//also have to tell flutter to delete that controller when that widget is not needed anymore; e.g., when the bottom sheet is closed
+//call the dispose method; part of a stateful widget's lifecycle
+//only stateful widgets can call a dispose method
+
+  @override
+  void dispose() {
+    _titleController
+        .dispose(); //call the dispose method on your controller to get rid of the stored value; it's important to call dispose after the controller does its job
+    _amountController.dispose();
+    super.dispose(); //something we just have to use
+  }
+
+//below method is when we create a separate variable
+//we can create an empty variable to take in the inputValue by the user
+//var _enteredTitle = '';
+//to store the text value, we can create a method for default 'onChanged' which requires a widget
+//void _saveTitleInput (String inputValue) { //'inputValue' is basically us defining what _saveTitleInput takes in and what we intend to do with it
+//_enteredTitle = inputValue;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(children: [
+          TextField(
+            //provided by Flutter to input text, can also set keyboard type
+            //onChanged: _saveTitleInput,
+            //now just set a controller parameter and mention controller
+            controller: _titleController,
+            maxLength: 50,
+            decoration: InputDecoration(
+                // a little unique but to add label you need to add decoration to the textfield
+                label: Text('Title', style: GoogleFonts.rubik())),
+          ),
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                    //provided by Flutter to input text, can also set keyboard type
+                    //onChanged: _saveTitleInput,
+                    //now just set a controller parameter and mention controller
+                    controller: _amountController,
+                    keyboardType: TextInputType.number,
+                    decoration: InputDecoration(
+                        // a little unique but to add label you need to add decoration to the textfield
+                        label: Text('Amount', style: GoogleFonts.rubik()),
+                        prefixText:
+                            '\$ ')), //just adds a prefix to the text field
+              ),
+              // but now need to create a button that lets the user submit the input
+              const SizedBox(
+                width: 16,
+              ),
+              Expanded(
+                //important to wrap with expanded when rows within rows, or textfield within row
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment
+                      .end, //to put the children as close to the end of the main axis as possible; here it's horizontal as the main axis
+                  crossAxisAlignment: CrossAxisAlignment
+                      .center, //to center it but not necessarily needed
+                  children: [
+                    Text(
+                        _selectedDate == null
+                            ? 'No date selected' //saying that if no date is selected show this text and then if it is selected, show _selectedDate but apply the 3rd party formatter object
+                            : formatter.format(_selectedDate!),
+                        style: GoogleFonts
+                            .rubik()), //basically adding an IF condition to see if the value is null or has something
+                    //important that we added an exclamation mark ! at the end of _selectedDate to force Dart that the value won't be null
+                    IconButton(
+                        onPressed:
+                            _presentDatePicker, //basically an emtpy method that returns the showDatePicker built in Flutter widget
+                        icon: const Icon(Icons.calendar_month))
+                  ],
+                ),
+              )
+            ],
+          ),
+          const SizedBox(height: 30),
+          Row(
+            children: [
+              //can add a dropdown widget
+              //onchanged must be a function
+              //we use word 'value' as it might be dynamic, flutter doesn't know what kind of value we'll put
+              //for items we can use our category enum, then values property which gives list with all values that make up the enum
+              //but 'items' need dropdown type list so we will use map to change this from one type of value to another
+              //we will use the word 'category' and then return dropdownmenuitem
+              //child parameter for this has to be set to what will be shown on the screen
+              //however, have to access the 'name property provided by Dart
+              //we were still getting the iterable error so then we called to.list
+              //in dropdown we also have the property 'value' which stores the value internally
+              //it's not shown to the user
+              //we can use toUpperCase to make it capitalized
+
+              //now since we want to show the selected value (it was showing in the terminal)
+              //and dropdown doesn't support a controller
+              //we can do this manually by creating a variable above just like selectedDate
+
+              DropdownButton(
+                  value:
+                      _selectedCategory, //ensures that currently selected value will show on the screen instead of empty dropdown as before
+                  items: Category.values
+                      .map(
+                        (category) => DropdownMenuItem(
+                          value: category,
+                          child: Text(
+                            category.name.toUpperCase(),
+                          ),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (value) {
+                    //we'll call setState here to display the category
+                    //we need to add an if check in case user doesn't select anything
+                    // we put it outside set state
+                    // so now the setstate code only executes if the value is not null
+                    //basically we added just 'return' here without mentioning what to return which is interesting
+                    //we can also now add a value parameter to dropdown button which we previously just had for dropdownmenuitem
+                    if (value == null) {
+                      return;
+                    }
+                    setState(() {
+                      _selectedCategory = value;
+                    });
+                  }),
+              const Spacer(),
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(
+                      context); //built in Dart feature that takes in current 'context' and removes overlay from the screen; easier than creating a new method to go back to the previous screen when we click on 'cancel'
+                },
+                child: Text(
+                  'Cancel',
+                  style: GoogleFonts.rubik(),
+                ),
+              ),
+              const Spacer(),
+              ElevatedButton(
+                onPressed: () {
+                  _submitExpenseData(); //a method created above that should be executed when you press elevated button of 'Save expense'
+                },
+                child: Text(
+                  'Save Expense',
+                  style: GoogleFonts.rubik(),
+                ),
+              )
+            ],
+          )
+        ]));
+  }
+}
